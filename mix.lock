@@ -1,0 +1,2 @@
+%{"phoenix_pubsub": {:hex, :phoenix_pubsub, "1.0.1", "c10ddf6237007c804bf2b8f3c4d5b99009b42eca3a0dfac04ea2d8001186056a", [:mix], []},
+  "vial": {:git, "https://github.com/c-brenn/vial.git", "173539e4b09d0cf6c8ff31ba1275fbfcd588b4bb", [tag: "v0.1.1"]}}

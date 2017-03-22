@@ -28,6 +28,9 @@ defmodule Bench.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:vial, git: "https://github.com/c-brenn/vial.git", tag: "v0.1.1"},
+      {:phoenix_pubsub, "~> 1.0"}
+    ]
   end
 end
