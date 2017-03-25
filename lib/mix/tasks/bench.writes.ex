@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Bench.Writes do
   use Mix.Task
   alias MapSet, as: Set
 
-  @operations 20000
+  @operations 100000
 
   def run(_opts) do
     operations = @operations
@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Bench.Writes do
     vial_time = time_writes(Vial, operations)
     phoenix_time = time_writes(Phoenix, operations)
 
-    log_header("Overall time for #{operations} writes (microseconds)")
+    log_header("Overall time for #{operations} writes")
     log_data([
       {StdLib, stdlib_time},
       {Vial, vial_time},
@@ -41,27 +41,27 @@ defmodule Mix.Tasks.Bench.Writes do
     phoenix_latency_op_usec = latency_usec(phoenix_usecs_op, stdlib_usecs_op)
     phoenix_latency_op_percent = latency_percent(phoenix_latency_op_usec, stdlib_usecs_op)
 
-    log_header("Operations / second (operations)")
+    log_header("Operations / second")
     log_data([
       {StdLib, stdlib_ops_sec},
       {Vial, vial_ops_sec},
       {Phoenix, phoenix_ops_sec}
     ], "ops/sec")
 
-    log_header("Time / operation (microseconds)")
+    log_header("Time / operation")
     log_data([
       {StdLib, stdlib_usecs_op},
       {Vial, vial_usecs_op},
       {Phoenix, phoenix_usecs_op}
     ], "usec")
 
-    log_header("Latency / operation (microseconds)")
+    log_header("Latency / operation")
     log_data([
       {Vial, vial_latency_op_usec},
       {Phoenix, phoenix_latency_op_usec}
     ], "usec")
 
-    log_header("Latency / operation (percentage)")
+    log_header("Latency / operation")
     log_data([
       {Vial, vial_latency_op_percent},
       {Phoenix, phoenix_latency_op_percent}
@@ -135,7 +135,7 @@ defmodule Mix.Tasks.Bench.Writes do
   end
   defp add_function(StdLib) do
     fn i, set ->
-      Set.put(set, i)
+      Set.put(set, {self(), i})
     end
   end
 end
