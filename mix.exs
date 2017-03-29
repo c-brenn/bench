@@ -30,7 +30,8 @@ defmodule Bench.Mixfile do
   defp deps do
     [
       {:vial, git: "https://github.com/c-brenn/vial.git", tag: "v0.1.1"},
-      {:phoenix_pubsub, "~> 1.0"}
+      {:phoenix_pubsub, "~> 1.0"},
+      {:poison, "~> 3.0"}
     ]
   end
 end

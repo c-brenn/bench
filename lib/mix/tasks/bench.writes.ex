@@ -9,68 +9,83 @@ defmodule Mix.Tasks.Bench.Writes do
   """
 
   use Mix.Task
-  alias Bench.Logger, as: Logger
 
   alias Bench.{
+    Datum,
     Generator,
+    LogFile,
     Metrics,
     Timer
   }
   @operations 100000
+  @min_ops     10000
+  @step        10000
 
   def run(_opts) do
-    operations = @operations
+    max_ops = @operations
+    start = @min_ops
+    step = @step
 
-    stdlib_time = time_writes(StdLib, operations)
-    vial_time = time_writes(Vial, operations)
-    phoenix_time = time_writes(Phoenix, operations)
+    {:ok, log} = LogFile.new("writes")
 
-    Logger.log_header("Overall time for #{operations} writes")
-    Logger.log_data([
-      {StdLib, stdlib_time},
-      {Vial, vial_time},
-      {Phoenix, phoenix_time}
-    ], "usec")
+    indices = 0..((max_ops - start) |> div(step))
 
+    IO.puts(log, "[")
 
-    stdlib_ops_per_sec = Metrics.ops_per_sec(operations, stdlib_time)
-    stdlib_time_per_op_usec = Metrics.time_per_op_usec(stdlib_time, operations)
+    indices
+    |> Enum.map(fn index ->
+      operations = start + (index * step)
 
-    vial_ops_per_sec = Metrics.ops_per_sec(operations, vial_time)
-    vial_time_per_op_usec = Metrics.time_per_op_usec(vial_time, operations)
-    vial_latency_op_usec = Metrics.latency_per_op_usec(vial_time_per_op_usec, stdlib_time_per_op_usec)
-    vial_latency_op_percent = Metrics.latency_per_op_percent(vial_latency_op_usec, stdlib_time_per_op_usec)
+      datum = Datum.new(operations)
 
-    phoenix_ops_per_sec = Metrics.ops_per_sec(operations, phoenix_time)
-    phoenix_time_per_op_usec = Metrics.time_per_op_usec(phoenix_time, operations)
-    phoenix_latency_op_usec = Metrics.latency_per_op_usec(phoenix_time_per_op_usec, stdlib_time_per_op_usec)
-    phoenix_latency_op_percent = Metrics.latency_per_op_percent(phoenix_latency_op_usec, stdlib_time_per_op_usec)
+      stdlib_time = time_writes(StdLib, operations)
+      vial_time = time_writes(Vial, operations)
+      phoenix_time = time_writes(Phoenix, operations)
 
-    Logger.log_header("Operations / second")
-    Logger.log_data([
-      {StdLib, stdlib_ops_per_sec},
-      {Vial, vial_ops_per_sec},
-      {Phoenix, phoenix_ops_per_sec}
-    ], "ops/sec")
+      datum =
+        datum
+        |> Datum.record([:stdlib, :time], stdlib_time)
+        |> Datum.record([:vial, :time], vial_time)
+        |> Datum.record([:phoenix, :time], phoenix_time)
 
-    Logger.log_header("Time / operation")
-    Logger.log_data([
-      {StdLib, stdlib_time_per_op_usec},
-      {Vial, vial_time_per_op_usec},
-      {Phoenix, phoenix_time_per_op_usec}
-    ], "usec")
+      stdlib_ops_per_sec = Metrics.ops_per_sec(operations, stdlib_time)
+      stdlib_time_per_op_usec = Metrics.time_per_op_usec(stdlib_time, operations)
 
-    Logger.log_header("Latency / operation")
-    Logger.log_data([
-      {Vial, vial_latency_op_usec},
-      {Phoenix, phoenix_latency_op_usec}
-    ], "usec")
+      datum =
+        datum
+        |> Datum.record([:stdlib, :ops_per_sec], stdlib_ops_per_sec)
+        |> Datum.record([:stdlib, :time_per_op_usec], stdlib_time_per_op_usec)
 
-    Logger.log_header("Latency / operation")
-    Logger.log_data([
-      {Vial, vial_latency_op_percent},
-      {Phoenix, phoenix_latency_op_percent}
-    ], "%")
+      vial_ops_per_sec = Metrics.ops_per_sec(operations, vial_time)
+      vial_time_per_op_usec = Metrics.time_per_op_usec(vial_time, operations)
+      vial_latency_op_usec = Metrics.latency_per_op_usec(vial_time_per_op_usec, stdlib_time_per_op_usec)
+      vial_latency_op_percent = Metrics.latency_per_op_percent(vial_latency_op_usec, stdlib_time_per_op_usec)
+
+      datum =
+        datum
+        |> Datum.record([:vial, :ops_per_sec], vial_ops_per_sec)
+        |> Datum.record([:vial, :time_per_op_usec], vial_time_per_op_usec)
+        |> Datum.record([:vial, :latency_per_op_usec], vial_latency_op_usec)
+        |> Datum.record([:vial, :latency_per_op_percent], vial_latency_op_percent)
+
+      phoenix_ops_per_sec = Metrics.ops_per_sec(operations, phoenix_time)
+      phoenix_time_per_op_usec = Metrics.time_per_op_usec(phoenix_time, operations)
+      phoenix_latency_op_usec = Metrics.latency_per_op_usec(phoenix_time_per_op_usec, stdlib_time_per_op_usec)
+      phoenix_latency_op_percent = Metrics.latency_per_op_percent(phoenix_latency_op_usec, stdlib_time_per_op_usec)
+
+      datum =
+        datum
+        |> Datum.record([:phoenix, :ops_per_sec], phoenix_ops_per_sec)
+        |> Datum.record([:phoenix, :time_per_op_usec], phoenix_time_per_op_usec)
+        |> Datum.record([:phoenix, :latency_per_op_usec], phoenix_latency_op_usec)
+        |> Datum.record([:phoenix, :latency_per_op_percent], phoenix_latency_op_percent)
+
+      encoded = Poison.encode_to_iodata!(datum, pretty: true)
+      IO.puts(log, [encoded, ","])
+    end)
+
+    IO.puts(log, "]")
+    LogFile.close(log)
   end
 
   defp time_writes(module, operations) do
