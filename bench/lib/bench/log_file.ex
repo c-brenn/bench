@@ -1,5 +1,5 @@
 defmodule Bench.LogFile do
-  @log_dir "logs"
+  @log_dir "../logs"
 
   def new(name) do
     file_name = add_timestamp(name) <> ".json"
