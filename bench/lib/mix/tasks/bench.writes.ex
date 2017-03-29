@@ -30,10 +30,7 @@ defmodule Mix.Tasks.Bench.Writes do
 
     indices = 0..((max_ops - start) |> div(step))
 
-    IO.puts(log, "[")
-
-    indices
-    |> Enum.map(fn index ->
+    results = Enum.map(indices, fn index ->
       operations = start + (index * step)
 
       datum = Datum.new(operations)
@@ -73,18 +70,15 @@ defmodule Mix.Tasks.Bench.Writes do
       phoenix_latency_op_usec = Metrics.latency_per_op_usec(phoenix_time_per_op_usec, stdlib_time_per_op_usec)
       phoenix_latency_op_percent = Metrics.latency_per_op_percent(phoenix_latency_op_usec, stdlib_time_per_op_usec)
 
-      datum =
-        datum
-        |> Datum.record([:phoenix, :ops_per_sec], phoenix_ops_per_sec)
-        |> Datum.record([:phoenix, :time_per_op_usec], phoenix_time_per_op_usec)
-        |> Datum.record([:phoenix, :latency_per_op_usec], phoenix_latency_op_usec)
-        |> Datum.record([:phoenix, :latency_per_op_percent], phoenix_latency_op_percent)
-
-      encoded = Poison.encode_to_iodata!(datum, pretty: true)
-      IO.puts(log, [encoded, ","])
+      datum
+      |> Datum.record([:phoenix, :ops_per_sec], phoenix_ops_per_sec)
+      |> Datum.record([:phoenix, :time_per_op_usec], phoenix_time_per_op_usec)
+      |> Datum.record([:phoenix, :latency_per_op_usec], phoenix_latency_op_usec)
+      |> Datum.record([:phoenix, :latency_per_op_percent], phoenix_latency_op_percent)
     end)
 
-    IO.puts(log, "]")
+    encoded = %{results: results} |> Poison.encode_to_iodata!(pretty: true)
+    IO.puts(log, encoded)
     LogFile.close(log)
   end
 
