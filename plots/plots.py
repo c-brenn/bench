@@ -22,7 +22,12 @@ def main():
         vial_times = [x["vial"]["time"] for x in results]
         phoenix_times = [x["phoenix"]["time"] for x in results]
 
-        plt.plot(operations, stdlib_times, operations, vial_times, operations, phoenix_times)
+        plt.plot(operations, phoenix_times, label='Existing CRDT')
+        plt.plot(operations, vial_times, label='Specialised CRDT')
+        plt.plot(operations, stdlib_times, label='Standard Library')
+        plt.xlabel('Operations')
+        plt.ylabel('Time (microseconds)')
+        plt.legend()
         plt.show()
 
 if __name__ == "__main__":
