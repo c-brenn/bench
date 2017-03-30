@@ -9,78 +9,32 @@ defmodule Mix.Tasks.Bench.Reads do
   """
 
   use Mix.Task
-  alias Bench.Logger, as: Logger
 
   alias Bench.{
+    Benchmark,
     Generator,
-    Metrics,
     Timer
   }
 
-  @operations 10000
   @set_size   10000
   @block_size 1000
 
   def run(_opts) do
-    operations = @operations
+    for module <- [StdLib, Vial, Phoenix] do
+      {:ok, _} = Agent.start_link(fn -> set_with_elements(module, 10000) end, name: module)
+    end
 
-    stdlib_time = time_reads(StdLib, operations)
-    vial_time = time_reads(Vial, operations)
-    phoenix_time = time_reads(Phoenix, operations)
-
-    Logger.log_header("Overall time for #{operations} reads")
-    Logger.log_data([
-      {StdLib, stdlib_time},
-      {Vial, vial_time},
-      {Phoenix, phoenix_time}
-    ], "usec")
-
-
-    stdlib_ops_per_sec = Metrics.ops_per_sec(operations, stdlib_time)
-    stdlib_time_per_op_usec = Metrics.time_per_op_usec(stdlib_time, operations)
-
-    vial_ops_per_sec = Metrics.ops_per_sec(operations, vial_time)
-    vial_time_per_op_usec = Metrics.time_per_op_usec(vial_time, operations)
-    vial_latency_op_usec = Metrics.latency_per_op_usec(vial_time_per_op_usec, stdlib_time_per_op_usec)
-    vial_latency_op_percent = Metrics.latency_per_op_percent(vial_latency_op_usec, stdlib_time_per_op_usec)
-
-    phoenix_ops_per_sec = Metrics.ops_per_sec(operations, phoenix_time)
-    phoenix_time_per_op_usec = Metrics.time_per_op_usec(phoenix_time, operations)
-    phoenix_latency_op_usec = Metrics.latency_per_op_usec(phoenix_time_per_op_usec, stdlib_time_per_op_usec)
-    phoenix_latency_op_percent = Metrics.latency_per_op_percent(phoenix_latency_op_usec, stdlib_time_per_op_usec)
-
-    Logger.log_header("Operations / second")
-    Logger.log_data([
-      {StdLib, stdlib_ops_per_sec},
-      {Vial, vial_ops_per_sec},
-      {Phoenix, phoenix_ops_per_sec}
-    ], "ops/sec")
-
-    Logger.log_header("Time / operation")
-    Logger.log_data([
-      {StdLib, stdlib_time_per_op_usec},
-      {Vial, vial_time_per_op_usec},
-      {Phoenix, phoenix_time_per_op_usec}
-    ], "usec")
-
-    Logger.log_header("Latency / operation")
-    Logger.log_data([
-      {Vial, vial_latency_op_usec},
-      {Phoenix, phoenix_latency_op_usec}
-    ], "usec")
-
-    Logger.log_header("Latency / operation")
-    Logger.log_data([
-      {Vial, vial_latency_op_percent},
-      {Phoenix, phoenix_latency_op_percent}
-    ], "%")
+    Benchmark.run("reads", &time_reads/2, 10000, 5000, 50000)
   end
 
   defp time_reads(module, operations) do
-    Logger.log_header("Creating #{@set_size} element set for: #{to_string(module)}")
-    set = set_with_elements(module, @set_size)
-    function = Generator.read_function(module, operations, @block_size, set)
-    Timer.time(:read, module, operations, function)
+    Task.async(fn ->
+      set = Agent.get(module, &(&1))
+      keys = div(@set_size, @block_size)
+      function = Generator.read_function(module, operations, keys, set, @block_size)
+      Timer.time(:read, module, operations, function)
+    end)
+    |> Task.await(:infinity)
   end
 
   def set_with_elements(module, elements) do

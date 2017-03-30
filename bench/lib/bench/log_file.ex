@@ -1,17 +1,17 @@
 defmodule Bench.LogFile do
   @log_dir "../logs"
 
-  def new(name) do
-    file_name = add_timestamp(name) <> ".json"
-    @log_dir
-    |> Path.join(file_name)
+  def new(operation) do
+    file_name = timestamp() <> ".json"
+    [@log_dir, operation, file_name]
+    |> Path.join()
     |> File.open([:write, :exclusive])
   end
 
   def close(log), do: File.close(log)
 
-  defp add_timestamp(name) do
+  defp timestamp() do
     {{year, month, day}, {hour, min, sec}} = :calendar.universal_time()
-    [name, year, month, day, hour, min, sec] |> Enum.join("_")
+    [year, month, day, hour, min, sec] |> Enum.join("_")
   end
 end

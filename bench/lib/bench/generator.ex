@@ -5,22 +5,28 @@ defmodule Bench.Generator do
     end
   end
 
-  def read_function(module, operations, block_size, set) do
-    keys = div(operations, block_size)
+  def read_function(module, operations, keys, set, size) do
     fn ->
-      for _ <- 1..block_size do
-        for key <- 1..keys do
-          if get_function(module).(key, set) |> Enum.count() != block_size do
-            throw "key: #{key} got #{get_function(module).(key, set) |> Enum.count() }"
-          end
+      Stream.cycle(1..keys)
+      |> Stream.take(operations)
+      |> Enum.each(fn key ->
+        if get_function(module).(key, set) |> Enum.count() != size do
+          throw "key: #{key} got #{get_function(module).(key, set) |> Enum.count() }"
         end
-      end
+      end)
     end
   end
 
   def new_set(Vial),    do: Vial.Set.new(:vial)
   def new_set(Phoenix), do: Phoenix.Tracker.State.new(:phoenix)
   def new_set(StdLib),  do: :ets.new(:foo, [:bag, :protected])
+
+  def cleanup(StdLib, set), do: :ets.delete(set)
+  def cleanup(Vial, set), do: :ets.delete(set.table)
+  def cleanup(Phoenix, set) do
+    :ets.delete(set.pids)
+    :ets.delete(set.values)
+  end
 
   defp add_function(Vial) do
     fn key, set ->
