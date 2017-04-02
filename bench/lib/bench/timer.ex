@@ -4,6 +4,6 @@ defmodule Bench.Timer do
   def time(operation_type, num_operations, module, function) do
     Logger.log_header("Timing #{num_operations} #{operation_type} operations for: #{to_string(module)}")
     {time, _} = :timer.tc(function)
-    time
+    {:ok, time}
   end
 end

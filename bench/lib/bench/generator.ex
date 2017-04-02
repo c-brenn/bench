@@ -5,21 +5,49 @@ defmodule Bench.Generator do
     end
   end
 
-  def read_function(module, operations, keys, set, size) do
+  def read_function(module, operations, keys, set, _size) do
     fn ->
       Stream.cycle(1..keys)
       |> Stream.take(operations)
       |> Enum.each(fn key ->
-        if get_function(module).(key, set) |> Enum.count() != size do
-          throw "key: #{key} got #{get_function(module).(key, set) |> Enum.count() }"
-        end
+        get_function(module).(key, set)
       end)
     end
   end
 
-  def new_set(Vial),    do: Vial.Set.new(:vial)
-  def new_set(Phoenix), do: Phoenix.Tracker.State.new(:phoenix)
-  def new_set(StdLib),  do: :ets.new(:foo, [:bag, :protected])
+  def merge_function(Vial, set, delta) do
+    fn ->
+      Vial.Set.merge(set, delta)
+    end
+  end
+
+  def merge_function(Phoenix, set, delta) do
+    fn ->
+      {s, _, _} = Phoenix.Tracker.State.merge(set, delta)
+      s
+    end
+  end
+
+  def delta(Vial, set) do
+    set.delta
+  end
+  def delta(Phoenix, set) do
+    Phoenix.Tracker.State.extract(set)
+  end
+
+  def clear_delta(Vial, set) do
+    clock = Vial.Vector.clock(set.vector, set.actor) - 1
+    delta = Vial.Delta.new(set.actor, clock)
+    %{set|delta: delta}
+  end
+  def clear_delta(Phoenix, set) do
+    Phoenix.Tracker.State.reset_delta(set)
+  end
+
+  def new_set(module, name \\ :set)
+  def new_set(Vial, name),    do: Vial.Set.new(name)
+  def new_set(Phoenix, name), do: Phoenix.Tracker.State.new(name)
+  def new_set(StdLib, _),  do: :ets.new(:foo, [:bag, :protected])
 
   def cleanup(StdLib, set), do: :ets.delete(set)
   def cleanup(Vial, set), do: :ets.delete(set.table)
@@ -28,17 +56,17 @@ defmodule Bench.Generator do
     :ets.delete(set.values)
   end
 
-  defp add_function(Vial) do
+  def add_function(Vial) do
     fn key, set ->
       Vial.Set.add(set, key, make_ref(), %{})
     end
   end
-  defp add_function(Phoenix) do
+  def add_function(Phoenix) do
     fn key, set ->
       Phoenix.Tracker.State.join(set, make_ref(), key, key, %{})
     end
   end
-  defp add_function(StdLib) do
+  def add_function(StdLib) do
     fn key, set ->
       :ets.insert(set, {key, make_ref()})
       set
