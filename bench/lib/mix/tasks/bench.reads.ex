@@ -16,15 +16,18 @@ defmodule Mix.Tasks.Bench.Reads do
     Timer
   }
 
-  @set_size   10000
-  @block_size 1000
+  @set_size   10_000
+  @block_size 1_000
+  @start      10_000
+  @step       2_000
+  @finish     100_000
 
   def run(_opts) do
     for module <- [StdLib, Vial, Phoenix] do
       {:ok, _} = Agent.start_link(fn -> set_with_elements(module, 10000) end, name: module)
     end
 
-    Benchmark.run("reads", &time_reads/2, 10000, 5000, 50000)
+    Benchmark.run("reads", &time_reads/2, @start, @step, @finish)
   end
 
   defp time_reads(module, operations) do

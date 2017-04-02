@@ -16,13 +16,13 @@ defmodule Mix.Tasks.Bench.Merges do
     Timer
   }
 
-  @max_ops    50000
-  @step        5000
-  @start      10000
-  @set_size   10
+  @start    10_000
+  @step     2_000
+  @finish   100_000
+  @set_size 5_000
 
   def run(_opts) do
-    Benchmark.run("merges", &time_merges/2, @start, @step, @max_ops)
+    Benchmark.run("merges", &time_merges/2, @start, @step, @finish)
   end
 
   defp time_merges(StdLib, _), do: {:error, :not_implemented}

@@ -15,9 +15,9 @@ defmodule Mix.Tasks.Bench.Writes do
     Generator,
     Timer
   }
-  @start  10000
-  @step   5000
-  @finish 100000
+  @start  10_000
+  @step   2_000
+  @finish 100_000
 
   def run(_opts) do
     Benchmark.run("writes", &time_writes/2, @start, @step, @finish)
