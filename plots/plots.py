@@ -1,6 +1,7 @@
 import getopt
 import glob
 import json
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -13,8 +14,8 @@ def get_args():
     return args[0][1]
 
 def get_time(module, rows):
-    if "time" in rows[0][module]:
-        return [row[module]["time"] for row in rows]
+    if "time_per_op_usec" in rows[0][module]:
+        return [row[module]["time_per_op_usec"] for row in rows]
     else:
         return []
 
@@ -40,16 +41,27 @@ def normalise(results, module):
     data = [result[module] for result in results]
     return np.mean(np.array(data), axis=0)
 
+def label_for(string):
+    parts = string.split(" ")
+    max_length = len(max(parts, key=len))
+    padding = max_length + 4
+    return "\n".join([part.center(padding) for part in parts])
 
+def plot_times(axes, module, operations, times):
+    if times.any():
+        axis = axes.plot(operations, times)
 
-def plot_times(module, operations, times):
-    if times == []:
-        return None
+        xpos = operations[-1]
+        ypos = times[-1]
+        label = label_for(module)
+        color = axis[-1].get_color()
+        axes.text(xpos, ypos, label, color=color)
     else:
-        plt.plot(operations, times, label=module)
+        return None
 
 
 def main():
+    matplotlib.rcParams.update({'font.size': 12})
     directory  = get_args()
     data_files = glob.glob(f"{directory}/*.json")
     results = [parse_results(file) for file in data_files]
@@ -60,13 +72,37 @@ def main():
     vial_times = normalise(results, 'vial')
     phoenix_times = normalise(results, 'phoenix')
 
-    plot_times('Existing CRDT', operations, phoenix_times)
-    plot_times('Specialised CRDT', operations, vial_times)
-    plot_times('Standard Library', operations, stdlib_times)
+    fig, axes = plt.subplots()
 
-    plt.xlabel('Operations')
-    plt.ylabel('Time (microseconds)')
-    plt.legend()
+    axes.set_title("Time taken to perform N operations")
+
+    axes.spines["bottom"].set_alpha(0.2)
+    axes.spines["left"].set_alpha(0.2)
+
+    axes.spines["top"].set_visible(False)
+    axes.spines["right"].set_visible(False)
+
+    axes.yaxis.grid()
+
+    for line in axes.get_ygridlines():
+        line.set_linestyle('dashed')
+        line.set_alpha(0.6)
+
+    axes.tick_params(axis="both", which="both", bottom="off", top="off",
+                    labelbottom="on", left="off", right="off", labelleft="on")
+
+    plot_times(axes, 'Existing CRDT', operations, phoenix_times)
+    plot_times(axes, 'Specialised CRDT', operations, vial_times)
+    plot_times(axes, 'StdLib', operations, stdlib_times)
+
+    axes.set_xlabel('Operations (thousands)')
+    axes.set_ylabel('Time (nanoseconds)')
+
+    x1,x2,y1,y2 = axes.axis()
+
+    axes.set_ylim(0, y2)
+    axes.set_xlim(min(operations), max(operations))
+
     plt.show()
 
 if __name__ == "__main__":
